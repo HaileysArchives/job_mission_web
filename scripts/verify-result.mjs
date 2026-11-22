@@ -3,7 +3,7 @@
 import { chromium } from "playwright";
 
 const VW = Number(process.env.VW ?? 1440);
-const BASE = "http://localhost:3100";
+const BASE = process.env.BASE_URL ?? "http://localhost:3100";
 const CASES = [
   {
     id: "performance-marketing",

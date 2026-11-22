@@ -5,7 +5,7 @@ const p = await b.newPage({ viewport: { width: VW, height: 900 } });
 const errors = [];
 p.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 300)));
 p.on("pageerror", (e) => errors.push("pageerror: " + e.message));
-const base = "http://localhost:3100/missions/performance-marketing";
+const base = `${process.env.BASE_URL ?? "http://localhost:3100"}/missions/performance-marketing`;
 const shot = (n, full = true) => p.screenshot({ path: `shots/step3_${n}_${VW}.png`, fullPage: full });
 
 await p.goto(base + "/play?step=1", { waitUntil: "networkidle" });

@@ -7,7 +7,7 @@ const errors = [];
 p.on("console", (m) => m.type() === "error" && errors.push(m.text().slice(0, 300)));
 p.on("pageerror", (e) => errors.push("pageerror: " + e.message));
 const id = "brand-marketing";
-const base = `http://localhost:3100/missions/${id}`;
+const base = `${process.env.BASE_URL ?? "http://localhost:3100"}/missions/${id}`;
 const shot = (n) => p.screenshot({ path: `shots/step4_${n}_${VW}.png`, fullPage: true });
 
 await p.goto(base + "/play?step=1", { waitUntil: "networkidle" });

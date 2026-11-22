@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import SmallScreenNotice from "@/components/SmallScreenNotice";
 
 export const metadata: Metadata = {
   title: "커리어 플랫폼 · 직무 미션",
@@ -19,7 +20,10 @@ export default function RootLayout({
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
         />
       </head>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {children}
+        <SmallScreenNotice />
+      </body>
     </html>
   );
 }
