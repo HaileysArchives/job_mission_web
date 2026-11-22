@@ -80,10 +80,14 @@ await p.getByText(/데모 데이터\(가짜 데이터\) \d+건/).waitFor();
 const demo = await readFunnel();
 console.log("   " + demo.map((r) => `${r.label}:${r.sessions}`).join(" → "));
 const monotone = demo.every((r, i) => i === 0 || r.sessions <= demo[i - 1].sessions);
-check(`데모 채우기 → CTA 노출 ${demo[0].sessions}세션 (기대 241 = 데모 240 + 내 체험 1), 단계별 감소`, demo[0].sessions === 241 && monotone);
+check(`데모 채우기 → CTA 노출 ${demo[0].sessions}세션 (기대 5001 = 데모 5000 + 내 체험 1), 단계별 감소`, demo[0].sessions === 5001 && monotone);
+const ctaRate = (demo[1].sessions / demo[0].sessions) * 100;
+const completion = (demo[7].sessions / demo[2].sessions) * 100;
+check(`전체 CTA 클릭률 ${ctaRate.toFixed(1)}% (3% 안팎), 완주율 ${completion.toFixed(1)}% (30% 안팎)`, ctaRate >= 2.5 && ctaRate <= 3.5 && completion >= 27 && completion <= 33);
+check("가짜 데이터 안내 유지", await p.getByText("데모 데이터(가짜 데이터)").isVisible());
 await p.getByRole("button", { name: "데모 데이터 채우기" }).click(); // 두 번 눌러도 중복되지 않는지
 await p.waitForTimeout(300);
-check("데모 채우기를 다시 눌러도 중복 없음", (await readFunnel())[0].sessions === 241);
+check("데모 채우기를 다시 눌러도 중복 없음", (await readFunnel())[0].sessions === 5001);
 await shot("demo");
 
 // 호버 툴팁
@@ -95,7 +99,9 @@ await p.screenshot({ path: `shots/step7_tooltip_${VW}.png`, clip: { x: 0, y: 380
 // 4. 직무 필터
 await p.getByRole("tab", { name: "브랜드 마케터" }).click();
 const brand = await readFunnel();
-check(`브랜드 필터 → CTA 노출 ${brand[0].sessions}세션 (전체보다 적음)`, brand[0].sessions > 0 && brand[0].sessions < 241);
+const brandCta = (brand[1].sessions / brand[0].sessions) * 100;
+const brandDone = (brand[7].sessions / brand[2].sessions) * 100;
+check(`브랜드 필터 → ${brand[0].sessions}세션, CTA ${brandCta.toFixed(1)}%(목표 2~4% 미달), 완주율 ${brandDone.toFixed(1)}%(목표 25~35% 미달)`, brand[0].sessions === 2000 && brandCta < 2 && brandCta > 1.5 && brandDone < 25 && brandDone > 22);
 await shot("demo_brand");
 
 // 5. 초기화 (확인창 수락)

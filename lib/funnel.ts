@@ -105,7 +105,9 @@ export function computeFunnel(all: TrackedEvent[], filter: string): FunnelSummar
   return { rows, avgDurationSec, submitCount: durations.length, nextMissionSessions };
 }
 
-// ── 데모 데이터 (가짜). 같은 결과가 나오도록 고정 시드 난수를 쓴다. ──
+// ── 데모 데이터 (가짜). 고정 시드와 단계별 고정 세션 수로 항상 같은 결과가 나온다. ──
+// 전체: CTA 클릭률 약 3%, 완주율 약 30% (목표 범위 안)
+// 브랜드: CTA 클릭률 1.9%, 완주율 24.2% (목표 2~4%, 25~35%에 조금 못 미치게)
 
 function mulberry32(seed: number) {
   return () => {
@@ -117,42 +119,48 @@ function mulberry32(seed: number) {
   };
 }
 
-export const DEMO_SESSIONS = 240;
+const DEMO_PLAN = {
+  "performance-marketing": {
+    impression: 3000, cta: 108, start: 90, step1: 78, step2: 58, step3: 45,
+    submit: 31, feedback: 29, next: 5, recommendation: 12, action: 5,
+  },
+  "brand-marketing": {
+    impression: 2000, cta: 38, start: 33, step1: 27, step2: 18, step3: 13,
+    submit: 9, feedback: 8, next: 2, recommendation: 3, action: 1,
+  },
+} as const;
+
+export const DEMO_SESSIONS = Object.values(DEMO_PLAN).reduce((sum, p) => sum + p.impression, 0);
 
 export function generateDemoEvents(now: number = Date.now()): TrackedEvent[] {
   const rand = mulberry32(20261122);
   const out: TrackedEvent[] = [];
-  for (let i = 0; i < DEMO_SESSIONS; i++) {
-    const sid = `demo-${String(i).padStart(3, "0")}`;
-    const id = rand() < 0.6 ? "performance-marketing" : "brand-marketing";
-    let ts = now - Math.floor(rand() * 14 * 86_400_000);
-    const push = (name: EventName, props: TrackedEvent["props"] = {}) => {
-      ts += Math.floor(5_000 + rand() * 60_000);
-      out.push({ name, ts, sid, props: { ...props, demo: true } });
-    };
+  let index = 0;
 
-    push("mission_impression", { jobId: id });
-    const goNext = (p: number) => rand() < p;
-    if (goNext(0.3)) {
-      push("mission_cta_click", { jobId: id });
-      if (goNext(0.85)) {
-        push("mission_start", { missionId: id });
-        let reached = 0;
-        for (const [step, p] of [[1, 0.92], [2, 0.78], [3, 0.9]] as const) {
-          if (!goNext(p)) break;
-          push("step_complete", { missionId: id, step });
-          reached = step;
-        }
-        if (reached === 3 && goNext(0.95)) {
-          push("mission_submit", { missionId: id, durationSec: Math.floor(240 + rand() * 540) });
-          push("feedback_view", { missionId: id });
-          if (goNext(0.2)) push("next_mission_click", { from: id, to: id === "performance-marketing" ? "brand-marketing" : "performance-marketing" });
-          if (goNext(0.4)) {
-            push("recommendation_click", { missionId: id, jobId: id });
-            if (goNext(0.45)) push(rand() < 0.65 ? "scrap_click" : "apply_click", { jobId: id });
-          }
-        }
+  for (const [id, plan] of Object.entries(DEMO_PLAN)) {
+    const other = id === "performance-marketing" ? "brand-marketing" : "performance-marketing";
+    for (let i = 0; i < plan.impression; i++) {
+      const sid = `demo-${String(index++).padStart(4, "0")}`;
+      // 마지막 이벤트가 미래 시각이 되지 않도록 1시간 이전부터 시작한다
+      let ts = now - 3_600_000 - Math.floor(rand() * 14 * 86_400_000);
+      const push = (name: EventName, props: NonNullable<TrackedEvent["props"]>) => {
+        ts += Math.floor(5_000 + rand() * 60_000);
+        out.push({ name, ts, sid, props: { ...props, demo: true } });
+      };
+
+      push("mission_impression", { jobId: id });
+      if (i < plan.cta) push("mission_cta_click", { jobId: id });
+      if (i < plan.start) push("mission_start", { missionId: id });
+      if (i < plan.step1) push("step_complete", { missionId: id, step: 1 });
+      if (i < plan.step2) push("step_complete", { missionId: id, step: 2 });
+      if (i < plan.step3) push("step_complete", { missionId: id, step: 3 });
+      if (i < plan.submit) {
+        push("mission_submit", { missionId: id, durationSec: Math.floor(240 + rand() * 540) });
       }
+      if (i < plan.feedback) push("feedback_view", { missionId: id });
+      if (i < plan.next) push("next_mission_click", { from: id, to: other });
+      if (i < plan.recommendation) push("recommendation_click", { missionId: id, jobId: id });
+      if (i < plan.action) push(rand() < 0.65 ? "scrap_click" : "apply_click", { jobId: id });
     }
   }
   return out.sort((a, b) => a.ts - b.ts);

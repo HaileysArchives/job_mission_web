@@ -48,8 +48,8 @@ function StatTile({
   );
 }
 
-function FunnelBar({ row, max }: { row: FunnelRow; max: number }) {
-  const width = max > 0 ? (row.sessions / max) * 100 : 0;
+function FunnelBar({ row, max, omitBar }: { row: FunnelRow; max: number; omitBar: boolean }) {
+  const width = !omitBar && max > 0 ? (row.sessions / max) * 100 : 0;
   const target = KPI_TARGETS[row.key];
   return (
     <li
@@ -62,10 +62,17 @@ function FunnelBar({ row, max }: { row: FunnelRow; max: number }) {
       </div>
 
       <div className="relative h-5 border-l border-border">
-        <div
-          className="h-5 rounded-r-[4px] bg-accent"
-          style={{ width: `${width}%`, minWidth: row.sessions > 0 ? 2 : 0 }}
-        />
+        {omitBar ? (
+          // TODO(문구): 막대 생략 안내
+          <span className="flex h-5 items-center pl-2 text-[12px] text-text-muted">
+            기준 모수 · 규모 차이가 커서 막대 생략
+          </span>
+        ) : (
+          <div
+            className="h-5 rounded-r-[4px] bg-accent"
+            style={{ width: `${width}%`, minWidth: row.sessions > 0 ? 2 : 0 }}
+          />
+        )}
         {/* 호버·포커스 툴팁 */}
         <div
           role="tooltip"
@@ -140,7 +147,11 @@ export default function FunnelDashboard() {
   const [filter, setFilter] = useState("all");
   const summary = useMemo(() => computeFunnel(events, filter), [events, filter]);
   const demoCount = events.filter(isDemo).length;
-  const max = Math.max(1, ...summary.rows.map((r) => r.sessions));
+  // 노출이 다음 단계들보다 5배 이상 크면 노출 막대를 빼고 나머지 단계끼리 같은 축으로 비교한다.
+  const impressionSessions = summary.rows[0].sessions;
+  const maxAfterFirst = Math.max(0, ...summary.rows.slice(1).map((r) => r.sessions));
+  const omitFirstBar = maxAfterFirst > 0 && impressionSessions >= maxAfterFirst * 5;
+  const max = omitFirstBar ? maxAfterFirst : Math.max(1, impressionSessions, maxAfterFirst);
   const byKey = Object.fromEntries(summary.rows.map((r) => [r.key, r]));
   const rate = (a: string, b: string) =>
     byKey[b]?.sessions ? (byKey[a].sessions / byKey[b].sessions) * 100 : null;
@@ -250,7 +261,7 @@ export default function FunnelDashboard() {
             ) : (
               <ol className="mt-2 space-y-0.5">
                 {summary.rows.map((row) => (
-                  <FunnelBar key={row.key} row={row} max={max} />
+                  <FunnelBar key={row.key} row={row} max={max} omitBar={omitFirstBar && row.key === "impression"} />
                 ))}
               </ol>
             )}
